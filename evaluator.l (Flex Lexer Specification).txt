@@ -1,0 +1,66 @@
+%{
+#include "y.tab.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int error_flag=0;
+%}
+
+%option noyywrap
+%option yylineno
+
+DIGIT [0-9]
+INTEGER {DIGIT}+
+FLOAT {DIGIT}+\.{DIGIT}{1,2}
+BAD_FLOAT1 {DIGIT}+\.{DIGIT}{3,}
+BAD_FLOAT2 {DIGIT}+\.{DIGIT}*
+WHITESPACE [ \t]+
+
+%%
+
+{WHITESPACE} { }
+\n { return NEWLINE;}
+{FLOAT} {
+yylval.dval=atof(yytext);
+return NUMBER; }
+
+{BAD_FLOAT1} {
+fprintf(stderr,"Error: more than 2 digits after decimal point\n");
+error_flag=1;
+return ERROR_TOKEN; }
+
+{BAD_FLOAT2} {
+fprintf(stderr,"Error: invalid number format\n");
+error_flag=1;
+return ERROR_TOKEN; }
+
+{INTEGER} {
+yylval.dval = atof(yytext);
+return NUMBER;
+}
+
+"+" { return PLUS;}
+"-" { return MINUS;}
+"*" { return TIMES;}
+
+
+"/" { return DIVIDE;}
+
+"<=" { return LE;}
+">=" { return GE;}
+"==" { return EQ;}
+"!=" { return NE;}
+"<" { return LT;}
+">" { return GT;}
+
+"&&" { return AND; }
+"||" { return OR; }
+
+"(" { return LPAREN; }
+")" { return RPAREN; }
+
+. {
+fprintf(stderr,"Error: unknown character '%s'\n",yytext);
+error_flag=1;
+return ERROR_TOKEN; }

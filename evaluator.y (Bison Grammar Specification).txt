@@ -1,0 +1,101 @@
+%{
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+extern int yylex(void);
+extern int yylineno;
+extern int error_flag;
+void yyerror(const char *msg);
+int line_error=0;
+%}
+%union {
+double dval;
+}
+%token <dval> NUMBER
+%token PLUS MINUS TIMES DIVIDE
+%token LT LE GT GE EQ NE
+%token AND OR
+%token LPAREN RPAREN
+%token NEWLINE
+%token ERROR_TOKEN
+%type <dval> expr
+%left OR
+%left AND
+%left LT LE GT GE EQ NE
+%left PLUS MINUS
+%left TIMES DIVIDE
+%right UMINUS
+%%
+program:
+program line
+| /* empty */
+;
+line:
+NEWLINE { line_error = 0; }
+| expr NEWLINE {
+if (!line_error && !error_flag) {
+/* Check if result is integer-valued comparison/logical (0 or 1) */
+
+if ($1 == 0.0 || $1 == 1.0) {
+
+/* Could be comparison result — print as integer */
+/* We use a flag approach: print as integer if it looks like bool */
+
+printf("%g\n", $1);
+
+
+} else {
+printf("%.2f\n", $1);
+}
+}
+line_error = 0;
+error_flag = 0;
+}
+| ERROR_TOKEN NEWLINE { line_error = 0; error_flag = 0; }
+| error NEWLINE {
+if (!line_error) {
+fprintf(stderr, "Syntax Error\n");
+}
+line_error = 0;
+error_flag = 0;
+yyerrok;
+}
+;
+expr:
+NUMBER { $$ = $1; }
+| expr PLUS expr { $$ = $1 + $3; }
+| expr MINUS expr { $$ = $1 - $3; }
+| expr TIMES expr { $$ = $1 * $3; }
+| expr DIVIDE expr {
+if ($3 == 0.0) {
+fprintf(stderr, "Error: division by zero\n");
+
+line_error = 1;
+$$ = 0;
+} else {
+$$ = $1 / $3;
+}
+}
+| MINUS expr %prec UMINUS { $$ = -$2; }
+| expr LT expr { $$ = ($1 < $3) ? 1.0 : 0.0; }
+| expr LE expr { $$ = ($1 <= $3) ? 1.0 : 0.0; }
+| expr GT expr { $$ = ($1 > $3) ? 1.0 : 0.0; }
+| expr GE expr { $$ = ($1 >= $3) ? 1.0 : 0.0; }
+| expr EQ expr { $$ = ($1 == $3) ? 1.0 : 0.0; }
+| expr NE expr { $$ = ($1 != $3) ? 1.0 : 0.0; }
+| expr AND expr { $$ = ($1 && $3) ? 1.0 : 0.0; }
+| expr OR expr { $$ = ($1 || $3) ? 1.0 : 0.0; }
+| LPAREN expr RPAREN { $$ = $2; }
+;
+%%
+void yyerror(const char *msg) {
+if (!line_error && !error_flag) {
+fprintf(stderr, "Syntax Error\n");
+line_error = 1;
+}
+}
+
+
+int main(void) {
+return yyparse();
+}
